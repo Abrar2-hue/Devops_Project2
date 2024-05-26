@@ -1,0 +1,46 @@
+resources:
+  repositories:
+  - repository: backend
+    type: github
+    endpoint: MyGitHubServiceConnection
+    name: devops-project-16/backend
+    trigger:
+    - main
+
+  - repository: frontend
+    type: github
+    endpoint: MyGitHubServiceConnection
+    name: devops-project-16/frontend
+    trigger: 
+    - main
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+- checkout: backend
+- checkout: frontend
+
+- script: mv $(Build.SourcesDirectory)/frontend $(Build.SourcesDirectory)/backend/
+  displayName: "Move frontend folder into backend"
+
+- script: |
+    cd $(Build.SourcesDirectory)/backend
+    python -m venv .venv
+    source .venv/bin/activate
+    pip install -r requirements.txt
+  displayName: "Creating venv, Activating venv, Installing requirements"
+
+- script: |
+    cd $(Build.SourcesDirectory)/backend
+    source .venv/bin/activate
+    pytest
+  displayName: "Running pytest for unit tests"
+  continueOnError: False
+
+- task: Docker@2
+  inputs:
+    containerRegistry: 'MyContainerRegistryConnection'
+    repository: 'ahmedmahmood19/devopsprojectcontainer'
+    command: 'buildAndPush'
+    Dockerfile: '$(Build.SourcesDirectory)/backend/Dockerfile'
